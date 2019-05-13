@@ -3,7 +3,6 @@
 
 ############################
 # author: Sebastian James  #
-# sources: MNE, Iran Roman #
 ############################
 
 '''
