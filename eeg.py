@@ -29,7 +29,7 @@ from autoreject import get_rejection_threshold  # noqa
 from autoreject import (AutoReject, set_matplotlib_defaults)  # noqa
 
 # Will print system and MNE information, including all installed packages.
-print("Current Working Directory " , os.getcwd())
+print("Current Working Directory ", os.getcwd())
 print(mne.sys_info())
 conditions = [1]
 # subject_ids = dict(SubjXX = '39')
@@ -49,12 +49,8 @@ for ichan in range(len(mat_channel_file[0, :])):
     ch_names.append(str((mat_channel_file[0, ichan][0][0].encode('ascii')), "utf-8"))
 
 montage = mne.channels.Montage(positions, ch_names, 'Neuroscan64', range(len(mat_channel_file[0, :])))
-# Designating space for epochs in an array (NumPy)
-# Evoked_all = np.zeros()
-# Evoked_Conds = np.zeros()
-# Can add more if needed.
 
-
+#%%
 ############################################################################
 # Loop to: Load raw data, trim edges to provide only stream with triggers, #
 # extract triggers, add any offset or filters needed, run SSP projections, #
@@ -66,6 +62,7 @@ for icond in conditions:
     raw_fname = 'Subj01_Data.cnt' # .cnt file must be in the working directory.
     raw = mne.io.read_raw_cnt(raw_fname, montage=montage, preload=True)
     stim_events = mne.find_events(raw, shortest_event=1)
+    raw.crop(tmin=1, tmax=raw.times[-1] - 1)
     # TODO: Remove recording edges.
 
     # OPTIONAL: visualize data to mark bad segments and bad electrodes
@@ -105,14 +102,14 @@ for icond in conditions:
         raw.add_proj(projs_veo)  # adding the projectors
 
     # Optional: view new data to check if projectors are correct. 
-    #raw.set_channel_types(mapping={'HEO':'eog','VEO':'eog','Trigger':'misc', 'STI 014':'misc'}) # making both EOG channels be of 'eog' type
-    #raw.plot(n_channels=68,duration=20.0,block=True) # optional: visualize again to check the effect of SSP
+    raw.set_channel_types(mapping={'HEO':'eog','VEO':'eog','Trigger':'misc', 'STI 014':'misc'}) # making both EOG channels be of 'eog' type
+    # raw.plot(n_channels=68,duration=20.0,block=True) # optional: visualize again to check the effect of SSP
 
     # Channels are now switched back to 'misc' for epoching, autoreject, and averaging.
     raw.set_channel_types(mapping={'HEO': 'misc', 'VEO': 'misc', 'Trigger': 'misc', 'STI 014': 'misc'})
     raw.interpolate_bads()
 
-    
+    #%%
     ############
     # Epoching #
     ############
@@ -121,43 +118,41 @@ for icond in conditions:
     epochs_params = dict(events=stim_events,
                         tmin=tmin, tmax=tmax, reject=None, proj=False, preload=True)
     epochs = mne.Epochs(raw, **epochs_params)
-    all_epochs = dict((cond, epochs[cond].get_data())
-                    for cond in event_id)
+
+    # TODO
+    # all_epochs = dict((cond, epochs[cond].get_data()) for cond in event_id) # stores epochs in an array, buggy.
+    
     # visualization
-    epochs.plot(block=True, n_epochs=20, scalings=dict(eeg=70e-6))
-    epochs.average().plot(spatial_colors=True, time_unit='s')
+    # epochs.plot(block=True, n_epochs=20, scalings=dict(eeg=70e-6))
+    # epochs.average().plot(spatial_colors=True, time_unit='s')
 
     
     ##############
     # Autoreject #
     ##############
 
-    # epochs = mne.Epochs(raw, **epochs_params)
-    # n_interpolates = np.array([])
-    # consensus_percs = np.linspace()
-    # picks = mne.pick_types(raw.info, meg=False, eeg=True, stim=False, eog=False, include=[], exclude=[])
-    # autoreject = AutoReject(n_interpolates, consensus_percs, picks=picks, thresh_method='random_search', random_state=42)
-    # autoreject.fit(epochs)
-    # epochs_clean = autoreject.transform(epochs)
-    # epochs_clean = epochs_clean.apply_proj()
-    # all_epochs = dict()
-    # # visualization to compare to original epochs:
-    # epochs_clean.plot()
-    # epochs_clean.average().plot()
+    epochs = mne.Epochs(raw, **epochs_params)
+    n_interpolates = np.array([1, 4, 8, 16])
+    consensus_percs = np.linspace(0, 1.0, 11)
+    picks = mne.pick_types(raw.info, meg=False, eeg=True, stim=False, eog=False, include=[], exclude=[])
+    ar = AutoReject(n_interpolates, consensus_percs, picks=picks, thresh_method='random_search', random_state=42)
+    ar.fit(epochs)
+    epochs_clean = ar.transform(epochs)
+    epochs_clean = epochs_clean.apply_proj()
+    
+    # TODO
+    # all_epochs = dict((cond, epochs_clean[cond].get_data()) for cond in event_id)
+    
+    # visualization to compare to original epochs:
+    epochs_clean.plot(block=True,n_epochs=1,scalings=dict(eeg=70e-6))
+    epochs_clean.average().plot(spatial_colors=True, time_unit='s')
 
     
     ##############
     # Store data #
     ##############
 
-
-
-
-
-
-'''
-Need to find why proj is returning none  - no good 
-epochs found
-'''
+    evoked = np.concatenate((evoked, all_epochs['Standard']))
+    print('Number of good trials: ', evoked.shape[0])
 
 
