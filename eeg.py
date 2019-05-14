@@ -31,8 +31,6 @@ from autoreject import (AutoReject, set_matplotlib_defaults)  # noqa
 print("Current Working Directory ", os.getcwd())
 print(mne.sys_info())
 conditions = [1]
-# subject_ids = dict(SubjXX = '39')
-
 
 # Setting up the general montage for the Neuroscan64 Quik-Cap
 # used in the CCRMA Neuromusic Lab.
@@ -62,15 +60,15 @@ for icond in conditions:
     raw = mne.io.read_raw_cnt(raw_fname, montage=montage, preload=True)
     stim_events = mne.find_events(raw, shortest_event=1)
     raw.crop(tmin=1, tmax=raw.times[-1] - 1)
-    # TODO: Remove recording edges.
+
 
     # OPTIONAL: visualize data to mark bad segments and bad electrodes
-    # raw.set_channel_types(mapping={'HEO':'eog','VEO':'eog','Trigger':'misc', 'STI 014':'misc'}) # Making both EOG channels be of 'eog' type.
-    # raw.plot(n_channels=68,duration=20.0,block=True)
-    # print("BAD ELECTRODES") # Checking output
-    # print(raw.info['bads']) # Checking output
-    # print("ANNOTATIONS") # Checking output
-    # print(raw.annotations) # Checking output
+    raw.set_channel_types(mapping={'HEO':'eog','VEO':'eog','Trigger':'misc', 'STI 014':'misc'}) # Making both EOG channels be of 'eog' type.
+    # raw.plot(n_channels=66,duration=20.0,block=True)
+    print("BAD ELECTRODES") # Checking output
+    print(raw.info['bads']) # Checking output
+    print("ANNOTATIONS") # Checking output
+    print(raw.annotations) # Checking output
     # # # interpolating bad channels
     # raw.interpolate_bads()
     # raw.info['bads'] = ['Trigger'] # Trigger is marked as bad as default. Let's keep it that way.
