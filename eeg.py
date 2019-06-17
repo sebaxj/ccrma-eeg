@@ -20,6 +20,8 @@ TODO:
 import mne
 import os
 from mne.io import read_raw_cnt
+from mne.preprocessing import create_eog_epochs, compute_proj_eog
+from mne.preprocessing import ICA
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.io as sp
@@ -31,6 +33,7 @@ from autoreject import (AutoReject, set_matplotlib_defaults)  # noqa
 print("Current Working Directory ", os.getcwd())
 print(mne.sys_info())
 conditions = [1]
+reject=dict(eeg=1e-4)
 
 # Setting up the general montage for the Neuroscan64 Quik-Cap
 # used in the CCRMA Neuromusic Lab.
@@ -69,19 +72,23 @@ for icond in conditions:
     print(raw.info['bads']) # Checking output
     print("ANNOTATIONS") # Checking output
     print(raw.annotations) # Checking output
-    # # # interpolating bad channels
-    # raw.interpolate_bads()
-    # raw.info['bads'] = ['Trigger'] # Trigger is marked as bad as default. Let's keep it that way.
+    # interpolating bad channels
+    raw.interpolate_bads()
+    raw.info['bads'] = ['Trigger'] # Trigger is marked as bad as default. Let's keep it that way.
     
-    # print(events)
-    # print(raw.ch_names)
-    # print(raw.info)
+    print(stim_events)
+    print(raw.ch_names)
+    print(raw.info)
+
 
     
     ##################
     # SPP Projectors #
     ##################
 
+    average_eog = create_eog_epochs(raw).average()
+    print('We found %i EOG events' % average_eog.nave)
+    average_eog.plot_joint()
     # making HEO channel be of 'eog' type to find its projectors
     raw.set_channel_types(mapping={'HEO': 'eog', 'VEO': 'misc', 
         'Trigger': 'misc', 'STI 014': 'misc'})
@@ -99,12 +106,24 @@ for icond in conditions:
         raw.add_proj(projs_veo)  # adding the projectors
 
     # Optional: view new data to check if projectors are correct. 
-    raw.set_channel_types(mapping={'HEO':'eog','VEO':'eog','Trigger':'misc', 'STI 014':'misc'}) # making both EOG channels be of 'eog' type
+    # raw.set_channel_types(mapping={'HEO':'eog','VEO':'eog','Trigger':'misc', 'STI 014':'misc'}) # making both EOG channels be of 'eog' type
     # raw.plot(n_channels=68,duration=20.0,block=True) # optional: visualize again to check the effect of SSP
 
     # Channels are now switched back to 'misc' for epoching, autoreject, and averaging.
     raw.set_channel_types(mapping={'HEO': 'misc', 'VEO': 'misc', 'Trigger': 'misc', 'STI 014': 'misc'})
     raw.interpolate_bads()
+
+    #######
+    # ICA #
+    #######
+
+    ica = ICA(n_components=25, method='fastica', random_state=23)
+    print(ica)
+    picks_eeg = mne.pick_types(raw.info, meg=False, eeg=True, eog=True,
+                           stim=False, exclude='bads')
+    ica.fit(raw, picks=picks_eeg, decim=3, reject=reject)
+    print(ica)
+    ica.plot_components()
 
     #%%
     ############
@@ -149,7 +168,7 @@ for icond in conditions:
     # Store data #
     ##############
 
-    evoked = np.concatenate((evoked, all_epochs['Standard']))
-    print('Number of good trials: ', evoked.shape[0])
+    # evoked = np.concatenate((evoked, all_epochs['Standard']))
+    # print('Number of good trials: ', evoked.shape[0])
 
 
