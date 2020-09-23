@@ -12,8 +12,6 @@ EEG data.
 
 TODO:
 - Pipline finished
-- Change input to take in .gdf files
-- Apply machine learning to epoched averages
 '''
 
 #%%
@@ -48,9 +46,9 @@ ch_names = [] # channel names are encoded in utf-8 (b'XXX), so they must be deco
 for ichan in range(len(mat_channel_file[0, :])):
     ch_names.append(str((mat_channel_file[0, ichan][0][0].encode('ascii')), "utf-8"))
 
-montage = mne.channels.Montage(positions, ch_names, 'Neuroscan64', range(len(mat_channel_file[0, :])))
+montage = mne.channels.make_dig_montage(ch_pos=dict(zip(ch_names, positions)), coord_frame='head')
 
-#%%
+
 ############################################################################
 # Loop to: Load raw data, trim edges to provide only stream with triggers, #
 # extract triggers, add any offset or filters needed, run SSP projections, #
@@ -60,7 +58,8 @@ montage = mne.channels.Montage(positions, ch_names, 'Neuroscan64', range(len(mat
 for icond in conditions: 
 
     raw_fname = 'Subj01_Data.cnt' # .cnt file must be in the working directory.
-    raw = mne.io.read_raw_cnt(raw_fname, montage=montage, preload=True)
+    raw = mne.io.read_raw_cnt(raw_fname, preload=True)
+    raw.set_montage(montage)
     stim_events = mne.find_events(raw, shortest_event=1)
     raw.crop(tmin=1, tmax=raw.times[-1] - 1)
 
@@ -81,7 +80,7 @@ for icond in conditions:
     print(raw.info)
 
 
-    
+    #%%
     ##################
     # SPP Projectors #
     ##################
@@ -156,12 +155,12 @@ for icond in conditions:
     epochs_clean = ar.transform(epochs)
     epochs_clean = epochs_clean.apply_proj()
     
-    # TODO
-    # all_epochs = dict((cond, epochs_clean[cond].get_data()) for cond in event_id)
+    # # TODO
+    # # all_epochs = dict((cond, epochs_clean[cond].get_data()) for cond in event_id)
     
-    # visualization to compare to original epochs:
-    epochs_clean.plot(block=True,n_epochs=1,scalings=dict(eeg=70e-6))
-    epochs_clean.average().plot(spatial_colors=True, time_unit='s')
+    # # visualization to compare to original epochs:
+    # epochs_clean.plot(block=True,n_epochs=1,scalings=dict(eeg=70e-6))
+    # epochs_clean.average().plot(spatial_colors=True, time_unit='s')
 
     
     ##############
